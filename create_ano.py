@@ -8,7 +8,7 @@ import os
 import shutil
 
 import chainer
-from chainercv.datasets import voc_bbox_label_names
+#from chainercv.datasets import voc_bbox_label_names
 from chainercv.links import SSD300
 from chainercv.links import SSD512
 from chainercv import utils
@@ -24,7 +24,7 @@ def argparser():
     parser.add_argument('--model', choices=('ssd300', 'ssd512'), default='ssd300')
     parser.add_argument('--gpu', type=int, default=-1)
     parser.add_argument('--pretrained_model', default='voc0712')
-    parser.add_argument('--output_dir', type=str, default='result1')
+    parser.add_argument('--output_dir', type=str, default='result')
     parser.add_argument('--no_copy', help="Do not copy images", action="store_true")
     parser.add_argument('image_dir', type=str)
     return parser.parse_args()
@@ -92,6 +92,18 @@ def create_pascalVOC(full_name, img_size, labels, bbox, output_file_name):
     with open(output_file_name, 'w') as fp:
         fp.write(elm)
 
+def load_bbox_label_names():
+    if not os.path.isfile('labels.txt'):
+        print('labels.txt is not exist.')
+        exit()
+
+    labels = []
+    with open('labels.txt') as fp:
+        for label in fp:
+            labels.append(label.replace('\n',''))
+
+    return tuple(labels)
+
 def main():
 
     args = argparser()
@@ -102,15 +114,20 @@ def main():
         print('output dir is exist.')
         exit()
 
+    print('loading labels...')
+    bbox_label_names = load_bbox_label_names()
+    print(bbox_label_names)
+    print('----')
+
     print('loading model...')
     chainer.config.train = False
     if args.model == 'ssd300':
         model = SSD300(
-            n_fg_class=len(voc_bbox_label_names),
+            n_fg_class=len(bbox_label_names),
             pretrained_model=args.pretrained_model)
     elif args.model == 'ssd512':
         model = SSD512(
-            n_fg_class=len(voc_bbox_label_names),
+            n_fg_class=len(bbox_label_names),
             pretrained_model=args.pretrained_model)
 
     if args.gpu >= 0:
@@ -126,7 +143,7 @@ def main():
         img = utils.read_image(jpg_name, color=True)
         bboxes, labels, scores = model.predict([img])
         bbox, label, score = bboxes[0], labels[0], scores[0]
-        str_label = [voc_bbox_label_names[n] for n in label]
+        str_label = [bbox_label_names[n] for n in label]
 
         # create_output_dir and name
         filename = os.path.split(jpg_name)[1]
